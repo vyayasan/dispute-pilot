@@ -1,5 +1,6 @@
 import type { Action, CaseFacts, Dispute, EvidenceItem } from "../domain/types.js";
 import { isLegal } from "../domain/stateMachine.js";
+import { AirwallexError } from "./airwallex.js";
 import type { Case, Gateway } from "../sim/simGateway.js";
 import type { AirwallexClient } from "./airwallex.js";
 
@@ -9,6 +10,8 @@ export interface LiveGatewayOptions {
   factsFor: (dispute: Dispute, raw: any) => CaseFacts;
   /** Person on whose approval the action is taken; sent to Airwallex as accepted_by / challenged_by. */
   actor: string;
+  /** Order details Airwallex asks for on a challenge (customer_info, delivery_info, order_info, reason, product_type and so on). Dates must be ISO date-times. */
+  challengeFor?: (c: Case) => Record<string, unknown>;
   /** Under this amount (major units) an accept is filed as a low-value acceptance. */
   lowValueBelow?: number;
 }
@@ -23,6 +26,7 @@ const toDispute = (j: any): Dispute => ({
  */
 export class LiveGateway implements Gateway {
   private cases = new Map<string, Case>();
+  private attempts = new Map<string, number>();
   private pending = new Map<string, { evidence: EvidenceItem; fileId?: string; bytes: Uint8Array }[]>();
   constructor(private o: LiveGatewayOptions) {}
 
@@ -50,11 +54,14 @@ export class LiveGateway implements Gateway {
   async apply(id: string, action: Action): Promise<string> {
     const c = await this.get(id); if (!c) throw new Error("dispute not found");
     if (!isLegal(c.dispute, action)) throw new Error(`illegal ${action} in ${c.dispute.stage}/${c.dispute.status}`);
-    // The approval nonce is not visible here, so a stable id per dispute+action+stage stops a double submit after a timeout.
-    const requestId = `dp-${id}-${action}-${c.dispute.stage}`;
+    // Stable for a retry of the same attempt (a timeout must not double-submit). Airwallex rejected the call outright
+    // (4xx), the next try is a new operation and gets a new id, because a reused id for a changed request is refused.
+    const key = `${id}-${action}-${c.dispute.stage}`;
+    const requestId = `dp-${key}-${this.attempts.get(key) ?? 0}`;
+    const bump = (e: unknown) => { if (e instanceof AirwallexError && e.status >= 400 && e.status < 500 && e.status !== 429) this.attempts.set(key, (this.attempts.get(key) ?? 0) + 1); throw e; };
     if (action === "ACCEPT") {
       const reason = c.dispute.amount < (this.o.lowValueBelow ?? 25) ? "LOW_VALUE_TRANSACTION" : "VALID_CUSTOMER_DISPUTE";
-      await this.o.client.accept(id, reason, this.o.actor, requestId);
+      await this.o.client.accept(id, reason, this.o.actor, requestId).catch(bump);
       return "ACCEPTED, refund issued";
     }
     if (action === "CHALLENGE") {
@@ -65,7 +72,10 @@ export class LiveGateway implements Gateway {
         const up = await this.o.client.uploadFile(s.evidence.name, s.bytes, s.evidence.kind === "jpg" ? "image/jpeg" : "application/pdf");
         fileIds.push(up.file_id);
       }
-      await this.o.client.challenge(id, this.o.actor, { supporting_documents: { documents: [{ description: "Evidence submitted after reviewer approval", file_ids: fileIds }] } }, requestId);
+      await this.o.client.challenge(id, this.o.actor, {
+        ...(this.o.challengeFor?.(c) ?? {}),
+        supporting_documents: { documents: [{ type: "PRIMARY", description: "Evidence submitted after reviewer approval", file_ids: fileIds }] },
+      }, requestId).catch(bump);
       this.pending.delete(id);
       return "CHALLENGED, awaiting issuer";
     }

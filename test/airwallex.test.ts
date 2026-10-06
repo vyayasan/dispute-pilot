@@ -32,7 +32,7 @@ describe("airwallex client", () => {
   it("raises typed errors", async () => {
     const m = mock((u) => (login(u) ? { body: { token: "t" } } : { status: 400, body: { code: "validation_error", message: "Dispute transition is not supported" } }));
     const c = new AirwallexClient({ clientId: "id", apiKey: "k", fetchImpl: m.fetchImpl });
-    await expect(c.simulateEscalate("d")).rejects.toBeInstanceOf(AirwallexError);
+    await expect(c.simulateEscalate("d", "2026-10-14T00:00:00.000Z")).rejects.toBeInstanceOf(AirwallexError);
   });
   it("fails closed on bad credentials and never leaks the key", async () => {
     const m = mock(() => ({ status: 401, body: { code: "credentials_invalid", message: "bad" } }));

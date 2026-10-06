@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { LiveGateway } from "../src/gateway/live.js";
+import { AirwallexError } from "../src/gateway/airwallex.js";
 import { createConsoleApi } from "../src/console/api.js";
 
 const raw = (over: Record<string, unknown> = {}) => ({ id: "dst_1", amount: 480, currency: "USD", reason: { original_code: "10.4" }, stage: "RFI", status: "REQUIRES_RESPONSE", due_at: "2026-10-14T00:00:00Z", ...over });
@@ -44,5 +45,26 @@ describe("live gateway behind the console", () => {
     await gw.list();
     expect(await gw.apply("dst_1", "ESCALATE")).toContain("ESCALATED");
     expect(client.accept).not.toHaveBeenCalled(); expect(client.challenge).not.toHaveBeenCalled();
+  });
+  it("sends typed documents and the order details the caller supplies", async () => {
+    const { client } = make();
+    const gw = new LiveGateway({ client, factsFor: facts, actor: "reviewer", challengeFor: () => ({ product_type: "PHYSICAL_GOODS", reason: "PURCHASE_HISTORY" }) });
+    await gw.list();
+    gw.attachEvidence("dst_1", { name: "p.jpg", kind: "jpg", bytes: new Uint8Array([0xff, 0xd8]), sha256: "a".repeat(64) });
+    await gw.apply("dst_1", "CHALLENGE");
+    const body: any = (client.challenge.mock.calls[0] as unknown[])[2];
+    expect(body.supporting_documents.documents[0].type).toBe("PRIMARY");
+    expect(body.product_type).toBe("PHYSICAL_GOODS");
+  });
+  it("reuses the request id after a timeout but not after Airwallex refuses the request", async () => {
+    const { client, gw } = make();
+    await gw.list();
+    client.accept.mockRejectedValueOnce(new Error("network timeout")).mockRejectedValueOnce(new AirwallexError(400, "validation_error", "bad")).mockResolvedValue({});
+    const id = () => (client.accept.mock.calls.at(-1) as unknown[])[3];
+    await expect(gw.apply("dst_1", "ACCEPT")).rejects.toThrow();
+    await expect(gw.apply("dst_1", "ACCEPT")).rejects.toThrow();
+    expect(id()).toBe((client.accept.mock.calls[0] as unknown[])[3]);
+    await gw.apply("dst_1", "ACCEPT");
+    expect(id()).not.toBe((client.accept.mock.calls[0] as unknown[])[3]);
   });
 });

@@ -59,7 +59,11 @@ export class AirwallexClient {
     if (!r.ok || !j.file_id) throw new AirwallexError(r.status, j.code ?? "upload_failed", j.message ?? "file upload failed");
     return { file_id: j.file_id };
   }
-  listDisputes() { return this.call<{ items: any[] }>("GET", "/api/v1/pa/payment_disputes"); }
+  // The list endpoint pages at 10 by default and takes up to 1000 per page, so ask for a full page of cases that still need an answer.
+  listDisputes(opts: { status?: string; size?: number } = {}) {
+    const q = new URLSearchParams({ size: String(opts.size ?? 100) }); if (opts.status) q.set("status", opts.status);
+    return this.call<{ items: any[] }>("GET", `/api/v1/pa/payment_disputes?${q}`);
+  }
   getDispute(id: string) { return this.call<any>("GET", `/api/v1/pa/payment_disputes/${encodeURIComponent(id)}`); }
   accept(id: string, reason: "LOW_VALUE_TRANSACTION" | "VALID_CUSTOMER_DISPUTE" | "OTHERS", acceptedBy: string, requestId?: string) {
     return this.call<any>("POST", `/api/v1/pa/payment_disputes/${encodeURIComponent(id)}/accept`, { accepted_by: acceptedBy, reason, description: "Accepted by dispute-pilot after approval" }, requestId);
@@ -68,5 +72,6 @@ export class AirwallexClient {
     return this.call<any>("POST", `/api/v1/pa/payment_disputes/${encodeURIComponent(id)}/challenge`, { challenge_method: "STANDARD", challenged_by: challengedBy, ...extra }, requestId);
   }
   // Sandbox-only simulators, kept behind this one client as the guide advises.
-  simulateEscalate(id: string, requestId?: string) { return this.call<any>("POST", `/api/v1/simulation/pa/payment_disputes/${encodeURIComponent(id)}/escalate`, {}, requestId); }
+  // due_at is required by the simulator: it becomes the new response deadline at the next stage (ISO date-time).
+  simulateEscalate(id: string, dueAt: string, requestId?: string) { return this.call<any>("POST", `/api/v1/simulation/pa/payment_disputes/${encodeURIComponent(id)}/escalate`, { due_at: dueAt }, requestId); }
 }
