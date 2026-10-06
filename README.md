@@ -2,7 +2,7 @@
 
 **An agent that works a chargeback queue and never acts without a signed, bound approval.**
 
-Modelled on Visa's VCR lifecycle, built on the Airwallex disputes API. No VROL integration is claimed (VROL has no public merchant API). The Visa-side modules are TAP-style RFC 9421 signature verification and a VIC-shaped instruction adapter with a fixture provider. No live Visa integration is claimed.
+Modelled on Visa's VCR lifecycle, built on the Airwallex disputes API. No VROL integration is claimed (Visa offers VROL to issuers and acquirers and their processors, not to merchants directly). The Visa-side modules are TAP-style RFC 9421 signature verification and a VIC-shaped instruction adapter with a fixture provider. No live Visa integration is claimed.
 
 ## The problem
 A merchant gets a chargeback. Every response has a deadline, a fee, and one shot at evidence. Defending a 9 USD dispute costs more than the 9 USD. Ignoring a 480 USD fraud claim with strong evidence loses money. Finance teams make these calls by hand, one case at a time, and agents that act on a model's say-so are not safe to point at money.
@@ -58,7 +58,7 @@ Open http://localhost:3000. Pick a case, accept, challenge or escalate, try the 
 See [docs/](docs/README.md): system architecture, dispute lifecycle, approval binding, and the three Kit 4 cases with the Visa mandate flip. Market research notes are in [docs/market-research.md](docs/market-research.md). Adversarial review findings are in [FINDINGS.md](FINDINGS.md).
 
 ## Status and honest limits
-- The console runs on a built-in simulator by default. Set `AIRWALLEX_CLIENT_ID` and `AIRWALLEX_API_KEY` and it runs on `LiveGateway` against the Airwallex sandbox instead. Evidence can be added through `POST /api/evidence` (JPG or PDF, checked by file signature) and is uploaded only when a challenge is approved. Escalation is a handoff to a person and makes no Airwallex call.
+- The console runs on a built-in simulator by default. Set `AIRWALLEX_CLIENT_ID` and `AIRWALLEX_API_KEY` and it runs on `LiveGateway` against the Airwallex sandbox instead (covered by mocked-client tests; the full console-on-sandbox path has not been run end to end yet). Evidence can be added through `POST /api/evidence` (JPG or PDF, checked by file signature) and is uploaded only when a challenge is approved. Escalation is a handoff to a person and makes no Airwallex call.
 - The human approval in the demo is a click in a local console, not an authenticated session. See FINDINGS.md for what is demo-acceptable and what must change before real money.
 - Replay stores are in memory.
 
