@@ -32,6 +32,8 @@ export interface CaseView {
 
 export interface ConsoleApiOptions {
   gateway?: Gateway;
+  /** Factory used on demo reset so a live console stays live; defaults to the simulator. */
+  makeGateway?: () => Gateway;
   /** Optional model-backed planner. It proposes and explains; it has no way to approve or execute. */
   planner?: (c: Case) => Promise<PlanResult>;
   key?: string;
@@ -79,7 +81,7 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
     }
     if (url.pathname === "/api/cases" && request.method === "GET") return json({ cases: (await gateway.list()).map(view), audit: audit.list() });
     if (url.pathname === "/api/reset-demo" && request.method === "POST") {
-      gateway = makeSim(now()); timelineByCase.clear(); audit.append("reset", {});
+      gateway = (options.makeGateway ?? (() => makeSim(now())))(); timelineByCase.clear(); audit.append("reset", {});
       return json({ cases: (await gateway.list()).map(view) });
     }
     if (url.pathname === "/api/approve" && request.method === "POST") {

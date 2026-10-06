@@ -6,6 +6,7 @@ import { page } from "./page.js";
 import { AuditLog } from "../audit/audit.js";
 import { AirwallexClient } from "../gateway/airwallex.js";
 import { LiveGateway } from "../gateway/live.js";
+import { makeSim } from "../sim/simGateway.js";
 import { modelFromEnv } from "../agent/model.js";
 import { planCase } from "../agent/planner.js";
 
@@ -16,13 +17,15 @@ const allowedOrigins = allowedHosts.map((h) => `http://${h}`);
 // Set AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY to run against the Airwallex sandbox; otherwise the in-memory simulator is used.
 // Merchant-side order facts Airwallex does not hold. A demo can supply them per dispute id in runs/demo-facts.json.
 const demoFacts: Record<string, unknown> = existsSync("runs/demo-facts.json") ? JSON.parse(readFileSync("runs/demo-facts.json", "utf8")) : {};
-const live = process.env.AIRWALLEX_CLIENT_ID && process.env.AIRWALLEX_API_KEY
-  ? new LiveGateway({ client: new AirwallexClient({ clientId: process.env.AIRWALLEX_CLIENT_ID, apiKey: process.env.AIRWALLEX_API_KEY }), actor: "demo-reviewer",
-      factsFor: (d) => ({ deviceIpMatchesPriorUndisputed: 0, signedDelivery: null, unansweredSupportEmails: 0, ...(demoFacts[d.id] ?? {}) }) })
-  : undefined;
+const makeGateway = () =>
+  process.env.AIRWALLEX_CLIENT_ID && process.env.AIRWALLEX_API_KEY
+    ? new LiveGateway({ client: new AirwallexClient({ clientId: process.env.AIRWALLEX_CLIENT_ID, apiKey: process.env.AIRWALLEX_API_KEY }), actor: "demo-reviewer",
+        factsFor: (d) => ({ deviceIpMatchesPriorUndisputed: 0, signedDelivery: null, unansweredSupportEmails: 0, ...(demoFacts[d.id] ?? {}) }) })
+    : undefined;
+const live = makeGateway();
 // ANTHROPIC_API_KEY turns on the model planner. Without it /api/plan answers 501 and policy alone decides, as before.
 const model = modelFromEnv();
-const api = createConsoleApi({ gateway: live, planner: model ? (c) => planCase(model, c) : undefined, key: randomBytes(32).toString("hex"), approver: "demo-reviewer", sessionToken, allowedOrigins, audit: new AuditLog("audit.jsonl") });
+const api = createConsoleApi({ gateway: live, makeGateway: () => makeGateway() ?? makeSim(), planner: model ? (c) => planCase(model, c) : undefined, key: randomBytes(32).toString("hex"), approver: "demo-reviewer", sessionToken, allowedOrigins, audit: new AuditLog("audit.jsonl") });
 const server = createServer(async (req, res) => {
   try {
     // Host allowlist blocks DNS-rebinding: a rebound hostname will not match.
