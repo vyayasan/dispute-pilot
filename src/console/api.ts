@@ -142,6 +142,7 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
       else audit.append(plan.gate?.accepted ? "model_proposal" : "model_proposal_rejected", {
         proposed: plan.proposal?.action, confidence: plan.proposal?.confidence, finalAction: plan.gate?.finalAction, reasons: plan.gate?.reasons,
         rationale: plan.proposal?.rationale.slice(0, 300), narrativeSha256: plan.narrativeSha256, cited: plan.proposal?.cited_evidence,
+        governance: plan.gate?.governance ? { rubricTotal: plan.gate.governance.rubric?.total, band: plan.gate.governance.rubric?.band, adjustedWinProbability: plan.gate.governance.rubric?.adjustedWinProbability, guardrails: plan.gate.governance.guardrailViolations.map((x) => x.check), reasoning: plan.gate.governance.reasoningViolations.map((x) => x.check), warnings: plan.gate.governance.warnings, critic: plan.gate.governance.critic?.veto } : undefined,
       }, c.dispute.id);
       seed(c);
       (timelineByCase.get(c.dispute.id) ?? []).push({ kind: "plan", title: plan.ok ? (plan.gate?.accepted ? "Model proposal accepted by policy" : "Model proposal rejected by policy") : "Model unavailable",

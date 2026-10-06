@@ -5,7 +5,9 @@ import { makeSim } from "../src/sim/simGateway.js";
 import { createConsoleApi } from "../src/console/api.js";
 
 const NOW = new Date();
-const propose = (input: Record<string, unknown>): Block[] => [{ type: "tool_use", id: "t1", name: "propose_action", input: { confidence: 0.8, rationale: "because", cited_evidence: [], ...input } }];
+const sc = (score: number, cites: string[] = []) => ({ score, cites, note: "per the case record" });
+export const strongRubric = () => ({ evidence_strength: sc(5, ["delivery-signature.jpg"]), customer_history: sc(4, ["unansweredSupportEmails"]), narrative_consistency: sc(4, ["order-footprint.pdf"]), reason_code_fit: sc(5, ["signedDelivery"]) });
+const propose = (input: Record<string, unknown>): Block[] => [{ type: "tool_use", id: "t1", name: "propose_action", input: { confidence: 0.7, rationale: "because", cited_evidence: [], rubric: strongRubric(), ...input } }];
 const scripted = (...turns: Block[][]): ModelClient & { calls: number } => { let i = 0; const m = { calls: 0, step: vi.fn(async () => { m.calls++; return turns[Math.min(i++, turns.length - 1)]; }) }; return m; };
 const caseOf = (id: string) => makeSim(NOW).get(id)!;
 
@@ -41,7 +43,7 @@ describe("model planner: the model proposes, policy decides", () => {
   });
   it("rejects evidence the case does not have, links in the narrative, and illegal actions", () => {
     const c = caseOf("dsp_demo_fraud");
-    const p = (x: object) => ProposalSchema.parse({ action: "CHALLENGE", confidence: 1, rationale: "r", cited_evidence: [], ...x });
+    const p = (x: object) => ProposalSchema.parse({ action: "CHALLENGE", confidence: 0.7, rationale: "r", cited_evidence: [], rubric: strongRubric(), ...x });
     expect(gate(p({ cited_evidence: ["made-up.pdf"] }), c, undefined, NOW).accepted).toBe(false);
     expect(gate(p({ challenge_narrative: "see https://evil.example" }), c, undefined, NOW).accepted).toBe(false);
     c.facts.evidenceRejectedByBank = true;
