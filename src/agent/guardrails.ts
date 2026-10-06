@@ -31,7 +31,11 @@ export function checkGuardrails(p: Proposal, c: Case): { violations: Violation[]
   if (fileMentions.length) v.push({ check: "no_new_facts", detail: `mentions evidence files the case does not have: ${fileMentions.slice(0, 3).join(", ")}` });
 
   // 3. Citations must point at something real: an evidence file or a structured fact key.
-  const factKeys = new Set(Object.keys(c.facts)), valid = (x: string) => names.has(x.toLowerCase()) || factKeys.has(x);
+  // A cite may point at the fact as shown (deviceIpMatchesPriorUndisputed), with its record prefix (facts.device...),
+  // or at a case document by the label read_case shows: "email from customer".
+  const factKeys = new Set(Object.keys(c.facts));
+  const docLabels = new Set((c.documents ?? []).map((d) => `${d.kind} from ${d.from}`.toLowerCase()));
+  const valid = (x: string) => names.has(x.toLowerCase()) || factKeys.has(x) || factKeys.has(x.replace(/^(facts|dispute|case)\./i, "")) || docLabels.has(x.toLowerCase());
   for (const k of CRITERIA) {
     const bad = p.rubric[k].cites.filter((x) => !valid(x));
     if (bad.length) v.push({ check: "citations", detail: `${k} cites things that are not in the case: ${bad.slice(0, 3).join(", ")}` });
