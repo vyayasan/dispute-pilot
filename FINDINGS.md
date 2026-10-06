@@ -69,3 +69,29 @@ The verifier binds `alg` to the registered key's algorithm and rejects mismatche
 - `test/redteam/approval-store.redteam.test.ts`
 
 Tests intentionally document both protections and present gaps. The check of the approval Set uses internal state to demonstrate retention, so refactor that test if the implementation adopts an explicit store interface.
+
+## Platform and model review (October 2026)
+
+A second pass from two angles: someone who runs the Airwallex disputes API in production, and someone who builds on the Claude API. Checked against the current Airwallex docs and the Claude platform docs. Severity is for a production deployment, not the demo.
+
+### Fixed in this pass
+| Severity | Finding | Fix |
+|---|---|---|
+| High | The default model id was out of date, and the request forced a tool call (`tool_choice: any`). The current Sonnet model returns a 400 for forced tool use, so the planner would have failed on every call and fallen back to policy. | Default is now `claude-sonnet-5-5` (override with `ANTHROPIC_MODEL`). The request uses `tool_choice: auto`, the prompt says to answer by tool call, the planner nudges once if the model answers in prose, then fails closed. |
+| Medium | `max_tokens` was 1500, which adaptive thinking also draws from, so a rubric-sized answer could be cut off. | Raised to 4096. Truncated output fails schema validation and falls back to policy. |
+| High | The Airwallex client did not recover from an expired token (401) or a rate limit (429). | One re-login on 401. Up to two backoff retries on 429, reusing the same `request_id` so Airwallex deduplicates the call. Tested. |
+| High | Disputes were only read by polling. Airwallex sends `payment_dispute.*` webhooks (requires_response, challenged, accepted, expired, pending_closure, pending_decision, won, lost, reversed). | Added `src/gateway/webhook.ts`: HMAC-SHA256 check of timestamp + raw body, timestamp tolerance, constant-time compare, duplicate drop by event id. Tested. |
+
+### Open, documented
+| Severity | Finding | Note |
+|---|---|---|
+| High | `LiveGateway` has only been run against mocks through the console. The raw sandbox run in `RUNLOG.md` used the client directly. | Needs one end-to-end console run on the sandbox. |
+| High | The webhook verifier is not wired to a public endpoint. The console binds to loopback by design. | Production needs a small public ingress that calls `WebhookVerifier` and then reloads the dispute. |
+| High | Approval is a local click without real authentication, and the replay store is in memory (see above). | Production needs SSO and a persistent nonce store. |
+| Medium | The order facts the agent decides on (device and IP history, delivery proof, support threads) come from fixtures. `factsFor` and `challengeFor` are caller-supplied. | Production needs an order-system integration. |
+| Medium | The dispute fee is configured in policy code; the sandbox does not deduct it. The low-value accept threshold is a configured constant. | Read both from the merchant's real settings. |
+| Medium | `listDisputes` asks for 100 per page and reads one page. | A merchant with more open disputes needs a paging loop. |
+| Medium | The governance layers are tested with a mock model and scripted proposals. No live run, so the real rate at which guardrails reject a live model is unknown. Weights and bands are demo values. | Run the 3 demo cases and the red-team set on a live model and record the trip rates. |
+| Low | Strict tool use (`strict: true`) is not enabled. Zod validates every proposal in code instead, and failures fall back to policy. | Revisit once the schema subset is confirmed for the integer score bounds. |
+| Low | No usage or cost logging for model calls; no retry on model 429 or 529 (the case simply falls back to policy). | Add if the model layer is used at volume. |
+| Low | The critic is available (`modelCritic`) but off by default. | Turn it on for high-value cases. |

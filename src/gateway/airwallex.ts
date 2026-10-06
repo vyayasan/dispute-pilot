@@ -42,12 +42,19 @@ export class AirwallexClient {
   }
   // requestId should be stable per logical action (e.g. the approval nonce) so a retry after a timeout is deduplicated by Airwallex.
   private async call<T>(method: "GET" | "POST", path: string, body?: Record<string, unknown>, requestId?: string): Promise<T> {
-    const token = await this.auth(); await this.throttle();
+    // One payload for every attempt, so a retry of a POST reuses the same request_id and Airwallex deduplicates it.
     const payload = method === "POST" ? { request_id: requestId ?? randomUUID(), ...(body ?? {}) } : undefined;
-    const r = await this.f(`${this.base}${path}`, { method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: payload ? JSON.stringify(payload) : undefined });
-    const j: any = await r.json().catch(() => ({}));
-    if (!r.ok) throw new AirwallexError(r.status, j.code ?? "error", j.message ?? "request failed");
-    return j as T;
+    let refreshed = false;
+    for (let attempt = 0; ; attempt++) {
+      const token = await this.auth(); await this.throttle();
+      const r = await this.f(`${this.base}${path}`, { method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: payload ? JSON.stringify(payload) : undefined });
+      const j: any = await r.json().catch(() => ({}));
+      if (r.ok) return j as T;
+      // An expired or revoked token: log in again once. Rate limited: back off and retry (at most twice).
+      if (r.status === 401 && !refreshed) { refreshed = true; this.token = ""; continue; }
+      if (r.status === 429 && attempt < 2) { await this.sleep(500 * 2 ** attempt); continue; }
+      throw new AirwallexError(r.status, j.code ?? "error", j.message ?? "request failed");
+    }
   }
   // Evidence goes through the File Service first; the returned id is what a challenge refers to. JPG or PDF only.
   async uploadFile(name: string, bytes: Uint8Array, contentType: "image/jpeg" | "application/pdf"): Promise<{ file_id: string }> {

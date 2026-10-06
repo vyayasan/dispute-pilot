@@ -12,8 +12,8 @@ export interface ModelClient { step(req: ModelRequest): Promise<Block[]> }
 
 export interface AnthropicOptions { apiKey: string; model?: string; baseUrl?: string; fetchImpl?: typeof fetch; timeoutMs?: number }
 
-// Override with ANTHROPIC_MODEL; the default is only a starting point.
-export const DEFAULT_MODEL = "claude-sonnet-4-5";
+// Override with ANTHROPIC_MODEL. Default: the current Sonnet at the time of writing (platform.claude.com model overview, October 2026).
+export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export class AnthropicModel implements ModelClient {
   private readonly send: (body: string) => Promise<Response>;
@@ -29,8 +29,11 @@ export class AnthropicModel implements ModelClient {
   private model: string; private timeoutMs: number;
 
   async step(req: ModelRequest): Promise<Block[]> {
-    // tool_choice "any": the model must answer with a tool call, never free text.
-    const r = await this.send(JSON.stringify({ model: this.model, max_tokens: 1500, system: req.system, messages: req.messages, tools: req.tools, tool_choice: { type: "any" } }));
+    // Claude Sonnet 5.5 rejects forced tool use (tool_choice "any" or "tool"), so the request uses "auto" and the system prompt
+    // says when to call a tool. If the reply has no tool call the planner nudges once and then fails closed to policy.
+    // max_tokens leaves room for adaptive thinking, which counts toward it. Thinking blocks are passed back unchanged
+    // (the conversation is append-only), and no sampling parameters are sent because the model returns 400 for them.
+    const r = await this.send(JSON.stringify({ model: this.model, max_tokens: 4096, system: req.system, messages: req.messages, tools: req.tools, tool_choice: { type: "auto" } }));
     const j: any = await r.json().catch(() => ({}));
     // Only the status and error type are surfaced, never the request or its headers.
     if (!r.ok) throw new Error(`model request failed: ${r.status} ${String(j?.error?.type ?? "error").slice(0, 60)}`);

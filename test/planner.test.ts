@@ -62,7 +62,7 @@ describe("model planner: the model proposes, policy decides", () => {
 });
 
 describe("Anthropic client", () => {
-  it("sends the key only as a header, forces a tool call and never leaks the key in errors", async () => {
+  it("sends the key only as a header, asks for a tool call without forcing one, and never leaks the key in errors", async () => {
     const KEY = "sk-ant-TESTSECRET";
     const f = vi.fn(async () => new Response(JSON.stringify({ error: { type: "authentication_error", message: "bad key " + KEY } }), { status: 401 }));
     const m = new AnthropicModel({ apiKey: KEY, fetchImpl: f as any });
@@ -70,7 +70,7 @@ describe("Anthropic client", () => {
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.anthropic.com/v1/messages");
     expect((init.headers as Record<string, string>)["x-api-key"]).toBe(KEY);
-    expect(String(init.body)).not.toContain(KEY); expect(String(init.body)).toContain('"tool_choice":{"type":"any"}');
+    expect(String(init.body)).not.toContain(KEY); expect(String(init.body)).toContain('"tool_choice":{"type":"auto"}');
     expect(String(err.message)).not.toContain(KEY); expect(String(err.message)).toContain("401");
   });
   it("is off without a key", () => { expect(modelFromEnv({})).toBeUndefined(); expect(modelFromEnv({ ANTHROPIC_API_KEY: "k" })).toBeDefined(); });
