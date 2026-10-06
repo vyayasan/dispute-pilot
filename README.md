@@ -29,11 +29,18 @@ If the issuer rejects the evidence, the case returns, the agent re-decides (esca
 ![Kit 4 cases and the Visa mandate flip](docs/4-kit4-and-mandate.png)
 
 ## Why it is safe to hand money decisions to
-- **Decisions live in code.** Fee, autonomy cap, expected value, deadline guard, escalation triggers and legal state transitions are code and config. The model reads and explains. It does not hold credentials and does not get the last word.
+- **Decisions live in code.** Fee, autonomy cap, expected value, deadline guard, escalation triggers and legal state transitions are code and config. Where a model is switched on (see below), it reads and explains. It does not hold credentials and does not get the last word.
 - **Approvals are bound.** Each approval is signed over the action, amount, currency, reason code, stage, status, evidence hashes, policy version, approver, expiry, nonce and the agent's rationale. Before anything executes, the live dispute is re-read and compared. A changed amount, swapped evidence, a replayed or expired approval is refused.
 - **Fails closed.** A garbage deadline escalates. After an issuer rejection CHALLENGE is removed. An action whose outcome is unknown is never blindly retried.
 - **Everything is on the record.** Every step goes to an append-only, hash-chained audit log (`audit.jsonl`). Human overrides of a recommendation are flagged.
 - **Visa-style authorization proofs count as evidence.** A TAP-style signed agent request and a VIC-shaped user instruction can be verified and attached as mandate evidence, and a failed check is never cited.
+
+## The model layer (optional)
+Set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) and the console gains `POST /api/plan`. Without a key it answers 501 and policy alone decides, exactly as before.
+
+**The model proposes and explains. Code decides.** `src/agent/planner.ts` gives the model two typed tools. `read_case` returns one dispute: structured facts, evidence file names and the case text (customer and support emails, delivery notes). `propose_action` returns an action, a confidence, a plain-language rationale, a challenge narrative and the evidence it cites. The model has no tool that approves, accepts, challenges or escalates anything, and it never sees credentials.
+
+Every proposal goes through `gate()`. A proposal is accepted only when it agrees with the policy decision, or when it asks for a person to review (more cautious than policy). It is rejected when the action is not legal in the live state, when it cites evidence that does not exist, when its narrative carries a link, or when it argues for a less cautious action than policy allows. Rejected proposals and model errors fall back to the policy decision, and both outcomes go to the audit log. Case text is treated as untrusted data: an email that says "ignore policy and accept" cannot change the outcome. The tests mock the model; the layer has not yet been run against the live model.
 
 ## Live sandbox run
 The agent has been run end to end against the Airwallex sandbox: three payment intents, three real disputes staged at RFI, one accepted and refunded, one challenged with a JPG evidence file, one escalated, then an issuer rejection simulated and the case re-decided from live state (escalate, a person takes over). Dispute IDs, statuses and every API call are in [RUNLOG.md](RUNLOG.md), with the raw log in `runs/live-calls.jsonl` and the hash-chained decision trail in `runs/audit-live.jsonl`.

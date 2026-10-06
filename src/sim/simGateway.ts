@@ -2,7 +2,9 @@ import type { Dispute, CaseFacts, EvidenceItem, Action } from "../domain/types.j
 import { isLegal } from "../domain/stateMachine.js";
 
 // In-memory stand-in for the Airwallex sandbox. The real gateway implements the same interface.
-export interface Case { dispute: Dispute; facts: CaseFacts; evidence: EvidenceItem[]; story: string; log: string[] }
+/** Free text attached to a case: customer or support emails, delivery notes. Untrusted input. */
+export interface CaseDocument { kind: "email" | "note"; from: string; text: string }
+export interface Case { dispute: Dispute; facts: CaseFacts; evidence: EvidenceItem[]; story: string; log: string[]; documents?: CaseDocument[] }
 type Maybe<T> = T | Promise<T>;
 // Either side may be async: the sandbox gateway talks over the network, the simulator does not.
 export interface Gateway {
@@ -24,15 +26,18 @@ export function makeSim(now = new Date()): SimGateway {
     { dispute: { id: "dsp_demo_fraud", amount: 480, currency: "USD", reasonCode: "10.4", stage: "RFI", status: "REQUIRES_RESPONSE", dueAt: due(9) },
       facts: { deviceIpMatchesPriorUndisputed: 3, signedDelivery: true, unansweredSupportEmails: 0 },
       evidence: [{ name: "order-footprint.pdf", sha256: sha("footprint"), kind: "pdf" }, { name: "delivery-signature.jpg", sha256: sha("signature"), kind: "jpg" }],
-      story: "Customer claims fraud. Device fingerprint and IP match 3 prior undisputed orders; signed delivery on file.", log: [] },
+      story: "Customer claims fraud. Device fingerprint and IP match 3 prior undisputed orders; signed delivery on file.", log: [],
+      documents: [{ kind: "note", from: "fulfilment", text: "Parcel delivered and signed for by the cardholder's household. Courier signature scan attached (delivery-signature.jpg)." }] },
     { dispute: { id: "dsp_demo_small", amount: 9, currency: "USD", reasonCode: "13.1", stage: "RFI", status: "REQUIRES_RESPONSE", dueAt: due(9) },
       facts: { deviceIpMatchesPriorUndisputed: 0, signedDelivery: false, unansweredSupportEmails: 0 },
       evidence: [{ name: "delivery-scan.jpg", sha256: sha("scan"), kind: "jpg" }],
-      story: "Not-received claim. Delivery scan has no signature. The dispute fee is larger than the amount.", log: [] },
+      story: "Not-received claim. Delivery scan has no signature. The dispute fee is larger than the amount.", log: [],
+      documents: [{ kind: "note", from: "fulfilment", text: "Left at the door per courier scan. No signature captured." }] },
     { dispute: { id: "dsp_demo_credit", amount: 120, currency: "USD", reasonCode: "13.6", stage: "RFI", status: "REQUIRES_RESPONSE", dueAt: due(9) },
       facts: { deviceIpMatchesPriorUndisputed: 0, signedDelivery: null, unansweredSupportEmails: 2 },
       evidence: [{ name: "support-thread.pdf", sha256: sha("thread"), kind: "pdf" }],
-      story: "Credit not processed. Customer emailed support twice and got no reply.", log: [] },
+      story: "Credit not processed. Customer emailed support twice and got no reply.", log: [],
+      documents: [{ kind: "email", from: "customer", text: "I returned the item two weeks ago and was promised a credit. I have written twice and nobody has replied. Please sort this out before I call my bank." }] },
   ];
   return {
     attachEvidence(id, file) {

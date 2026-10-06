@@ -6,12 +6,14 @@ import type { Action, Dispute } from "../domain/types.js";
 import { decide, DEFAULT_POLICY } from "../policy/policy.js";
 import { makeSim, type Case, type Gateway } from "../sim/simGateway.js";
 import { AuditLog } from "../audit/audit.js";
+import type { PlanResult } from "../agent/planner.js";
 
 const ActBody = z.object({ approval: z.object({
   disputeId: z.string(), action: z.enum(["ACCEPT", "CHALLENGE", "ESCALATE"]), amount: z.number(), currency: z.string(),
   reasonCode: z.string(), stage: z.string(), status: z.string(), evidenceSha256: z.array(z.string()), policyVersion: z.string(),
   approver: z.string(), expiresAt: z.string(), nonce: z.string(), rationale: z.string().max(1024), sig: z.string(),
 }) });
+const PlanBody = z.object({ disputeId: z.string() });
 const ApproveBody = z.object({ disputeId: z.string(), action: z.enum(["ACCEPT", "CHALLENGE", "ESCALATE"]) });
 const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
 const EvidenceBody = z.object({ disputeId: z.string(), name: z.string().trim().min(1).max(120).regex(/^[\w .()-]+$/), kind: z.enum(["jpg", "pdf"]), base64: z.string().max(8 * 1024 * 1024) });
@@ -30,6 +32,8 @@ export interface CaseView {
 
 export interface ConsoleApiOptions {
   gateway?: Gateway;
+  /** Optional model-backed planner. It proposes and explains; it has no way to approve or execute. */
+  planner?: (c: Case) => Promise<PlanResult>;
   key?: string;
   approver?: string;
   now?: () => Date;
@@ -126,6 +130,23 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
         audit.append("outcome_unknown", { action: approval.action, error: msg, nonce: approval.nonce }, c.dispute.id);
         return bad(`outcome unknown, reconcile before retrying: ${msg}`, 409);
       }
+    }
+    if (url.pathname === "/api/plan" && request.method === "POST") {
+      if (!options.planner) return bad("no model configured: the policy decision above is the plan", 501);
+      const parsed = PlanBody.safeParse(await request.json().catch(() => null));
+      if (!parsed.success) return bad("invalid plan request", 400);
+      const c = await gateway.get(parsed.data.disputeId);
+      if (!c) return bad("dispute not found", 404);
+      const plan = await options.planner(c);
+      if (!plan.ok) audit.append("model_error", { error: plan.error }, c.dispute.id);
+      else audit.append(plan.gate?.accepted ? "model_proposal" : "model_proposal_rejected", {
+        proposed: plan.proposal?.action, confidence: plan.proposal?.confidence, finalAction: plan.gate?.finalAction, reasons: plan.gate?.reasons,
+        rationale: plan.proposal?.rationale.slice(0, 300), narrativeSha256: plan.narrativeSha256, cited: plan.proposal?.cited_evidence,
+      }, c.dispute.id);
+      seed(c);
+      (timelineByCase.get(c.dispute.id) ?? []).push({ kind: "plan", title: plan.ok ? (plan.gate?.accepted ? "Model proposal accepted by policy" : "Model proposal rejected by policy") : "Model unavailable",
+        detail: plan.ok ? `Proposed ${plan.proposal?.action}. ${plan.gate?.reasons.join("; ")}` : `${plan.error}. Policy decision stands.` });
+      return json({ plan, case: view(c) });
     }
     if (url.pathname === "/api/evidence" && request.method === "POST") {
       const parsed = EvidenceBody.safeParse(await request.json().catch(() => null));
