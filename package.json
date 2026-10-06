@@ -1,0 +1,26 @@
+{
+  "name": "dispute-pilot",
+  "version": "0.1.0",
+  "description": "Dispute response agent: policy in code, approvals bound to amount, currency, reason code and evidence. Built on the Airwallex disputes API.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "start": "tsx src/console/server.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "evals": "tsx evals/runner.ts"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "pdf-lib": "^1.17.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/jpeg-js": "^0.3.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
