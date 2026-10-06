@@ -28,6 +28,11 @@ If the issuer rejects the evidence, the case returns, the agent re-decides (esca
 
 ![Kit 4 cases and the Visa mandate flip](docs/4-kit4-and-mandate.png)
 
+## Case intake - nobody pastes
+In production case material arrives on its own: the Airwallex dispute webhook brings the case (id, amount, currency, reason code), customer emails bring the story, evidence files arrive as signature-checked JPG or PDF uploads, and the issuer's chargeback letter arrives as a PDF with a pluggable extractor (the path fails closed without one). Each path lands in `src/intake`, which returns untrusted text plus a provenance string for the audit log - case text stays data, never instructions. See [docs/case-intake.md](docs/case-intake.md).
+
+![Case intake](docs/6-case-intake.png)
+
 ## Why it is safe to hand money decisions to
 - **Decisions live in code.** Fee, autonomy cap, expected value, deadline guard, escalation triggers and legal state transitions are code and config. Where a model is switched on (see below), it reads and explains. It does not hold credentials and does not get the last word.
 - **Approvals are bound.** Each approval is signed over the action, amount, currency, reason code, stage, status, evidence hashes, policy version, approver, expiry, nonce and the agent's rationale. Before anything executes, the live dispute is re-read and compared. A changed amount, swapped evidence, a replayed or expired approval is refused.
@@ -79,7 +84,7 @@ Open http://localhost:3000. Pick a case, accept, challenge or escalate, try the 
     npm run smoke     # live Airwallex sandbox, read-only; needs AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY in your environment
 
 ## Architecture
-See [docs/](docs/README.md): system architecture, dispute lifecycle, approval binding, and the three Kit 4 cases with the Visa mandate flip. Market research notes are in [docs/market-research.md](docs/market-research.md). Adversarial review findings are in [FINDINGS.md](FINDINGS.md).
+See [docs/](docs/README.md): system architecture, dispute lifecycle, approval binding, the three Kit 4 cases with the Visa mandate flip, model governance, and case intake. Market research notes are in [docs/market-research.md](docs/market-research.md). Adversarial review findings are in [FINDINGS.md](FINDINGS.md).
 
 ## Status and honest limits
 - The console runs on a built-in simulator by default. Set `AIRWALLEX_CLIENT_ID` and `AIRWALLEX_API_KEY` and it runs on `LiveGateway` against the Airwallex sandbox instead (covered by mocked-client tests; the full console-on-sandbox path has not been run end to end yet). Evidence can be added through `POST /api/evidence` (JPG or PDF, checked by file signature) and is uploaded only when a challenge is approved. Escalation is a handoff to a person and makes no Airwallex call.

@@ -9,6 +9,7 @@ Code-grounded workflow and architecture maps for the current repository. The Mer
 3. [Approval binding](./approval-binding.md) · [SVG](./approval-binding.svg) · [PNG](./3-approval-binding.png)
 4. [Kit 4 cases and mandate-evidence flip](./kit4-and-mandate.md) · [SVG](./kit4-and-mandate.svg) · [PNG](./4-kit4-and-mandate.png)
 5. [Model governance](./model-governance.md) · [SVG](./model-governance.svg) · [PNG](./5-model-governance.png)
+6. [Case intake](./case-intake.md) · [SVG](./case-intake.svg) · [PNG](./6-case-intake.png)
 
 ## Scope notes
 

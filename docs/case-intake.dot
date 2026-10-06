@@ -1,0 +1,18 @@
+digraph intake {
+  graph [rankdir=LR, bgcolor="#fffaf0", pad="0.28", nodesep="0.36", ranksep="0.58", splines=polyline, fontname="Inter", labelloc=t, label="DISPUTE PILOT  /  CASE INTAKE", fontsize=22, fontcolor="#183d32"];
+  node [shape=box, style="rounded,filled", color="#d8e2d8", fillcolor="#fffdf8", fontname="Inter", fontsize=11, fontcolor="#1d2a25", margin="0.16,0.12", penwidth=1.3];
+  edge [color="#35594b", penwidth=1.5, arrowsize=0.72, fontname="Inter", fontsize=9, fontcolor="#52675d"];
+  webhook [label="AIRWALLEX WEBHOOK\ndispute.created event\nid · amount · currency · reason code", fillcolor="#dcebe0", color="#789b82"];
+  email [label="CUSTOMER EMAIL\nreply or support thread\nuntrusted case text", fillcolor="#dcebe0", color="#789b82"];
+  upload [label="EVIDENCE UPLOAD\ndelivery scan · order record\nJPG/PDF, checked by file signature", fillcolor="#dcebe0", color="#789b82"];
+  letter [label="ISSUER LETTER PDF\nchargeback notice\npluggable extractor; fails closed", fillcolor="#dcebe0", color="#789b82"];
+  intake [label="INTAKE LAYER (src/intake)\nuntrusted text + provenance string\nno copy-paste anywhere", fillcolor="#e8f0e8", penwidth=1.6];
+  record [label="CASE RECORD\nfacts · evidence · case text\nevery item carries its provenance", fillcolor="#f3ead8", color="#d7c8a8", penwidth=1.6];
+  pipeline [label="EXISTING PIPELINE\npolicy decides · model explains\nperson approves · gateway executes", fillcolor="#fae9e4", color="#d7897c"];
+  webhook -> intake [label="the case arrives"];
+  email -> intake [label="the story arrives"];
+  upload -> intake [label="the proof arrives"];
+  letter -> intake [label="the notice arrives"];
+  intake -> record [label="typed intake result"];
+  record -> pipeline [label="read_case / policy reads"];
+}
