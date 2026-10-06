@@ -1,0 +1,32 @@
+digraph architecture {
+  graph [rankdir=LR, bgcolor="#fffaf0", pad="0.28", nodesep="0.36", ranksep="0.58", splines=polyline, fontname="Inter", labelloc=t, label="DISPUTE PILOT  /  SYSTEM ARCHITECTURE", fontsize=22, fontcolor="#183d32"];
+  node [shape=box, style="rounded,filled", color="#d8e2d8", fillcolor="#fffdf8", fontname="Inter", fontsize=11, fontcolor="#1d2a25", margin="0.16,0.12", penwidth=1.3];
+  edge [color="#35594b", penwidth=1.5, arrowsize=0.72, fontname="Inter", fontsize=9, fontcolor="#52675d"];
+  reviewer [label="REVIEWER", fillcolor="#f3ead8", color="#d7c8a8", penwidth=1.6];
+  ui [label="CONSOLE PAGE\nQueue · recommendation · evidence metadata"];
+  api [label="CONSOLE API\nGET cases · approve · act · reject · reset", fillcolor="#e8f0e8"];
+  domain [label="DOMAIN MODEL + STATE MACHINE\nDispute · facts · evidence · stage/status legality", fillcolor="#f3ead8", color="#d7c8a8"];
+  approval [label="APPROVAL BINDING\nHMAC issue + live verification\nExpiry · evidence · replay checks", fillcolor="#dcebe0", color="#789b82"];
+  gateway [label="Gateway interface\nlist · get · apply", fillcolor="#e8f0e8"];
+  sim [label="IN-MEMORY SIMULATOR\nDefault console backend\n3 Kit 4 cases", fillcolor="#dcebe0", color="#789b82"];
+  aw [label="AIRWALLEX SANDBOX CLIENT\nThin typed client exists\nNot wired to console", style="rounded,filled,dashed", fillcolor="#fffdf8", color="#9ba8a0"];
+  policy [label="POLICY + STATE GUARD\nEvidence-weighted decision\nLegal actions by stage/status", fillcolor="#dcebe0", color="#789b82"];
+  evidence [label="EVIDENCE ASSEMBLY\nCE 3.0 footprint check\nPDF/JPEG artifacts + SHA-256"];
+  tap [label="TAP-STYLE VERIFY\nRFC 9421 signature + nonce\nLocal verifier; no Visa link", fillcolor="#f7eee5", color="#d9b18c"];
+  vic [label="VIC-SHAPED ADAPTER\nFixture instruction + mandate checks\nSHA-256 evidence receipt", fillcolor="#f7eee5", color="#d9b18c"];
+  timeline [label="CONSOLE TIMELINE\nPlan · new info · revised decision\nIn memory; not durable audit", fillcolor="#fae9e4", color="#d7897c"];
+  caselog [label="SIMULATOR CASE LOG\nPer-case in-memory entries\nSeparate from console timeline", fillcolor="#fae9e4", color="#d7897c"];
+  reviewer -> ui [label="chooses"];
+  ui -> api [label="HTTP API"];
+  api -> gateway [label="case reads / apply"];
+  api -> approval [label="approve / verify action"];
+  approval -> gateway [label="fresh case + action guard"];
+  domain -> policy [label="typed inputs + state rules"];
+  gateway -> sim [label="default"];
+  gateway -> aw [style=dashed, label="adapter boundary"];
+  api -> policy [label="case + evidence"];
+  policy -> api [label="decision + legal actions"];
+  tap -> vic [label="verified request"];
+  api -> timeline [label="review / action events"];
+  sim -> caselog [label="case log"];
+}

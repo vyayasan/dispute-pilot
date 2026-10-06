@@ -1,0 +1,36 @@
+digraph kit4 {
+  graph [rankdir=LR, bgcolor="#fffaf0", pad="0.3", nodesep="0.38", ranksep="0.58", splines=polyline, fontname="Inter", labelloc=t, label="DISPUTE PILOT  /  KIT 4 + MANDATE EVIDENCE FLIP", fontsize=22, fontcolor="#183d32"];
+  node [shape=box, style="rounded,filled", color="#d8e2d8", fillcolor="#fffdf8", fontname="Inter", fontsize=10, fontcolor="#1d2a25", margin="0.15,0.12", penwidth=1.2];
+  edge [color="#35594b", penwidth=1.35, arrowsize=0.72, fontname="Inter", fontsize=9, fontcolor="#52675d"];
+  subgraph cluster_k4 {
+    label="KIT 4  /  SIMULATOR CASES"; color="#d8e2d8"; style="rounded"; fontname="Inter"; fontsize=13; fontcolor="#183d32";
+    c1 [label="10.4 FRAUD · $480\n3 device/IP matches + signed delivery\nEvidence present: p = 0.90; EV = $417", fillcolor="#e8f0e8"];
+    a1 [label="CHALLENGE", fillcolor="#dcebe0", color="#789b82"];
+    c2 [label="13.1 NOT RECEIVED · $9\nNo signed delivery\n$15 fee ≥ $9 dispute", fillcolor="#fff4df", color="#c6ab75"];
+    a2 [label="ACCEPT", fillcolor="#f3ead8", color="#c6ab75"];
+    c3 [label="13.6 CREDIT · $120\n2 unanswered support emails\nhuman-review guard", fillcolor="#fae9e4", color="#d7897c"];
+    a3 [label="ESCALATE", fillcolor="#fae9e4", color="#d7897c"];
+    c1 -> a1 [label="facts + score"];
+    c2 -> a2 [label="fee guard"];
+    c3 -> a3 [label="priority guard"];
+  }
+  signed [label="SIGNED REQUEST + DISPUTE\nexpected authority / path / operation", fillcolor="#f3ead8", color="#d7c8a8"];
+  subgraph cluster_flip {
+    label="MANDATE EVIDENCE  /  SAME STRONG 10.4 FACTS"; color="#d8e2d8"; style="rounded"; fontname="Inter"; fontsize=13; fontcolor="#183d32";
+    noev [label="NO EVIDENCE ITEMS\npolicy caps p = 0.10\nEV = $33", fillcolor="#fff4df", color="#c6ab75"];
+    accept [label="ACCEPT\nbelow p ≥ 0.50 challenge threshold", fillcolor="#f3ead8", color="#c6ab75"];
+    receipt [label="VERIFIED MANDATE RECEIPT ADDED\nnon-empty evidence list\npolicy still scores case facts", fillcolor="#e8f0e8", color="#789b82"];
+    challenge [label="CHALLENGE\np = 0.90 · EV = $417", fillcolor="#dcebe0", color="#789b82"];
+    noev -> accept [label="current policy"];
+    receipt -> challenge [label="current policy"];
+  }
+  tap [label="TAP-STYLE VERIFY\nsignature · authority/path/tag\nkey · expiry · nonce", fillcolor="#f7eee5", color="#d9b18c"];
+  vic [label="VIC-SHAPED FIXTURE CHECK\nauthenticated · unexpired\namount · currency · merchant", fillcolor="#f7eee5", color="#d9b18c"];
+  unverified [label="UNVERIFIED RESULT\nreasons + hash receipt returned\ndo not treat as verified evidence", fillcolor="#fae9e4", color="#d7897c"];
+  signed -> tap [label="request signature"];
+  tap -> vic [label="TAP verified"];
+  vic -> receipt [label="mandate checks pass"];
+  vic -> unverified [label="any mandate check fails", color="#b85e51", fontcolor="#9b4338"];
+  caveat [shape=note, label="SCOPE\nMandate helper is not wired into console/policy.\nThe flip isolates evidence.length === 0 vs non-empty;\nmandate kind has no special policy score.", fillcolor="#fff4ef", color="#d7897c", fontsize=9];
+  caveat -> receipt [style=dashed, arrowhead=none];
+}

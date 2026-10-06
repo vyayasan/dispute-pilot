@@ -1,0 +1,26 @@
+digraph approval {
+  graph [rankdir=TB, bgcolor="#fffaf0", pad="0.3", nodesep="0.34", ranksep="0.42", splines=polyline, fontname="Inter", labelloc=t, label="DISPUTE PILOT  /  APPROVAL BINDING", fontsize=22, fontcolor="#183d32"];
+  node [shape=box, style="rounded,filled", color="#d8e2d8", fillcolor="#fffdf8", fontname="Inter", fontsize=11, fontcolor="#1d2a25", margin="0.16,0.12", penwidth=1.3];
+  edge [color="#35594b", penwidth=1.45, arrowsize=0.72, fontname="Inter", fontsize=9, fontcolor="#52675d"];
+  reviewer [label="REVIEWER / CONSOLE\nselect case + action", fillcolor="#f3ead8", color="#d7c8a8"];
+  api1 [label="POST /api/approve\nget current case"];
+  guard [shape=diamond, label="Action legal\nin stage/status?", fillcolor="#fff4df", color="#c6ab75", margin="0.1,0.06"];
+  issue [label="ISSUE HMAC-SIGNED APPROVAL\ncase ID · action · amount · currency · reason code\nstage/status · evidence hashes · policy version\napprover · expiry (60s) · one-use nonce", fillcolor="#e8f0e8", color="#789b82"];
+  send [label="API returns signed token\nConsole submits POST /api/act", fillcolor="#f3ead8", color="#d7c8a8"];
+  reread [label="Re-fetch case from Gateway\nre-read current evidence hashes", fillcolor="#e8f0e8"];
+  verify [label="VERIFY TOKEN + LIVE BINDINGS\nsignature · expiry · unused nonce · action\ncase fields · evidence hashes · live legality"];
+  valid [shape=diamond, label="All checks\npass?", fillcolor="#fff4df", color="#c6ab75", margin="0.1,0.06"];
+  apply [label="Gateway apply(action)\nconsume nonce after success\nappend in-memory timeline", fillcolor="#dcebe0", color="#789b82"];
+  refusal [label="REFUSE · HTTP 409\nno action submitted", fillcolor="#fae9e4", color="#d7897c"];
+  illegal [label="REFUSE · HTTP 409\nno approval issued", fillcolor="#fae9e4", color="#d7897c"];
+  reviewer -> api1 [label="1 · choose"];
+  api1 -> guard;
+  guard -> issue [label="yes"];
+  guard -> illegal [label="no"];
+  issue -> send [label="2 · token response"];
+  send -> reread [label="3 · act request"];
+  reread -> verify;
+  verify -> valid;
+  valid -> apply [label="yes"];
+  valid -> refusal [label="no"];
+}

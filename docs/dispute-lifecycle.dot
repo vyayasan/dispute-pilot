@@ -1,0 +1,22 @@
+digraph lifecycle {
+  graph [rankdir=LR, bgcolor="#fffaf0", pad="0.3", nodesep="0.48", ranksep="0.62", splines=polyline, fontname="Inter", labelloc=t, label="DISPUTE PILOT  /  SIMULATED DISPUTE LIFECYCLE", fontsize=22, fontcolor="#183d32"];
+  node [shape=box, style="rounded,filled", color="#d8e2d8", fillcolor="#fffdf8", fontname="Inter", fontsize=11, fontcolor="#1d2a25", margin="0.18,0.14", penwidth=1.3];
+  edge [color="#35594b", penwidth=1.6, arrowsize=0.75, fontname="Inter", fontsize=9, fontcolor="#52675d"];
+  rfi [label="RFI\nREQUIRES_RESPONSE\nACCEPT · CHALLENGE · ESCALATE", fillcolor="#e6efe5", color="#789b82", penwidth=1.8];
+  accepted [label="ACCEPTED\nrefund issued", fillcolor="#dcebe0", color="#789b82"];
+  challenge [label="CHALLENGE submitted\nstatus briefly CHALLENGED", fillcolor="#f3ead8", color="#c6ab75"];
+  rejected [label="ISSUER REJECTS EVIDENCE\nsimulator sets rejection flag", fillcolor="#fae9e4", color="#d7897c"];
+  cb [label="CHARGEBACK\nREQUIRES_RESPONSE\nACCEPT · ESCALATE\n(CHALLENGE blocked: one shot used)", fillcolor="#fae9e4", color="#d7897c", penwidth=1.8];
+  rec [label="POLICY recommends\nESCALATE to a person", fillcolor="#f3ead8", color="#c6ab75"];
+  human [label="ESCALATED\nto a person\nno further actions", fillcolor="#dcebe0", color="#789b82", penwidth=1.8];
+  note [shape=note, label="ONE SHOT\nAfter an issuer rejection the evidence has had its one shot,\nso the state machine removes CHALLENGE. ESCALATE at CHARGEBACK is\nour internal handoff, never the Airwallex simulator call.", fillcolor="#f2f6f1", color="#789b82", fontsize=10];
+  rfi -> accepted [label="ACCEPT"];
+  rfi -> challenge [label="CHALLENGE"];
+  rfi -> human [label="ESCALATE"];
+  challenge -> rejected [label="simulator beat"];
+  rejected -> cb [label="back at response stage"];
+  cb -> accepted [label="ACCEPT"];
+  cb -> rec [label="rejection fact triggers policy"];
+  rec -> human [label="approved ESCALATE"];
+  cb -> note [style=dashed, arrowhead=none];
+}
