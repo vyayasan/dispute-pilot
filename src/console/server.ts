@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { existsSync, readFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { createConsoleApi } from "./api.js";
 import { page } from "./page.js";
@@ -13,9 +14,11 @@ const sessionToken = randomBytes(24).toString("hex"); // per run; only the page 
 const allowedHosts = [`localhost:${PORT}`, `127.0.0.1:${PORT}`];
 const allowedOrigins = allowedHosts.map((h) => `http://${h}`);
 // Set AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY to run against the Airwallex sandbox; otherwise the in-memory simulator is used.
+// Merchant-side order facts Airwallex does not hold. A demo can supply them per dispute id in runs/demo-facts.json.
+const demoFacts: Record<string, unknown> = existsSync("runs/demo-facts.json") ? JSON.parse(readFileSync("runs/demo-facts.json", "utf8")) : {};
 const live = process.env.AIRWALLEX_CLIENT_ID && process.env.AIRWALLEX_API_KEY
   ? new LiveGateway({ client: new AirwallexClient({ clientId: process.env.AIRWALLEX_CLIENT_ID, apiKey: process.env.AIRWALLEX_API_KEY }), actor: "demo-reviewer",
-      factsFor: () => ({ deviceIpMatchesPriorUndisputed: 0, signedDelivery: null, unansweredSupportEmails: 0 }) })
+      factsFor: (d) => ({ deviceIpMatchesPriorUndisputed: 0, signedDelivery: null, unansweredSupportEmails: 0, ...(demoFacts[d.id] ?? {}) }) })
   : undefined;
 // ANTHROPIC_API_KEY turns on the model planner. Without it /api/plan answers 501 and policy alone decides, as before.
 const model = modelFromEnv();
