@@ -13,7 +13,7 @@ flowchart LR
   AB -->|fresh case read + legality| GI
   DM[Domain types + state machine<br/>Dispute · facts · evidence · stage/status] --> POL
   GI --> SIM[In-memory simulator<br/>default console backend]
-  GI -. future adapter boundary .-> AW[Airwallex sandbox client<br/>typed client exists; not wired]
+  GI --> AW[LiveGateway on the Airwallex sandbox client<br/>used when credentials are set]
   API -->|facts + evidence + live state| POL[Policy + legal-action guard]
   POL -->|recommendation / legal actions| API
   EF[Evidence assembler<br/>CE 3.0 footprint + PDF/JPEG artifacts<br/>standalone helper; not simulator-wired]

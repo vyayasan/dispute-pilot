@@ -58,7 +58,7 @@ Open http://localhost:3000. Pick a case, accept, challenge or escalate, try the 
 See [docs/](docs/README.md): system architecture, dispute lifecycle, approval binding, and the three Kit 4 cases with the Visa mandate flip. Market research notes are in [docs/market-research.md](docs/market-research.md). Adversarial review findings are in [FINDINGS.md](FINDINGS.md).
 
 ## Status and honest limits
-- The console runs on a built-in simulator. The live sandbox run above drives the Airwallex API through scripts, and `src/gateway/airwallex.ts` is not yet wired into the console.
+- The console runs on a built-in simulator by default. Set `AIRWALLEX_CLIENT_ID` and `AIRWALLEX_API_KEY` and it runs on `LiveGateway` against the Airwallex sandbox instead. Evidence can be added through `POST /api/evidence` (JPG or PDF, checked by file signature) and is uploaded only when a challenge is approved. Escalation is a handoff to a person and makes no Airwallex call.
 - The human approval in the demo is a click in a local console, not an authenticated session. See FINDINGS.md for what is demo-acceptable and what must change before real money.
 - Replay stores are in memory.
 

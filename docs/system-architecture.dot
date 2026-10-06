@@ -9,12 +9,12 @@ digraph architecture {
   approval [label="APPROVAL BINDING\nHMAC issue + live verification\nExpiry · evidence · replay checks", fillcolor="#dcebe0", color="#789b82"];
   gateway [label="Gateway interface\nlist · get · apply", fillcolor="#e8f0e8"];
   sim [label="IN-MEMORY SIMULATOR\nDefault console backend\n3 Kit 4 cases", fillcolor="#dcebe0", color="#789b82"];
-  aw [label="AIRWALLEX SANDBOX CLIENT\nThin typed client exists\nNot wired to console", style="rounded,filled,dashed", fillcolor="#fffdf8", color="#9ba8a0"];
+  aw [label="AIRWALLEX SANDBOX GATEWAY\nLiveGateway on the typed client\nConsole uses it when credentials are set", style="rounded,filled,dashed", fillcolor="#fffdf8", color="#9ba8a0"];
   policy [label="POLICY + STATE GUARD\nEvidence-weighted decision\nLegal actions by stage/status", fillcolor="#dcebe0", color="#789b82"];
   evidence [label="EVIDENCE ASSEMBLY\nCE 3.0 footprint check\nPDF/JPEG artifacts + SHA-256"];
   tap [label="TAP-STYLE VERIFY\nRFC 9421 signature + nonce\nLocal verifier; no Visa link", fillcolor="#f7eee5", color="#d9b18c"];
   vic [label="VIC-SHAPED ADAPTER\nFixture instruction + mandate checks\nSHA-256 evidence receipt", fillcolor="#f7eee5", color="#d9b18c"];
-  timeline [label="CONSOLE TIMELINE\nPlan · new info · revised decision\nIn memory; not durable audit", fillcolor="#fae9e4", color="#d7897c"];
+  timeline [label="CONSOLE TIMELINE\nPlan · new info · revised decision\nTimeline in memory; every step\nalso in the hash-chained audit log (audit.jsonl)", fillcolor="#fae9e4", color="#d7897c"];
   caselog [label="SIMULATOR CASE LOG\nPer-case in-memory entries\nSeparate from console timeline", fillcolor="#fae9e4", color="#d7897c"];
   reviewer -> ui [label="chooses"];
   ui -> api [label="HTTP API"];

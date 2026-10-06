@@ -34,4 +34,4 @@ sequenceDiagram
 
 The HMAC-signed token binds the dispute ID, selected action, amount, currency, reason code, stage, status, sorted evidence SHA-256 list, policy version, approver, expiry and one-use nonce. Before execution, the verifier checks the signature, reuse and expiry, selected action, matching current dispute fields, legality in current state, and the current evidence hashes. It refuses rather than proceeding when a binding no longer matches.
 
-The sequence's “live” read is a fresh `gateway.get()` call. In the current console this reads the in-memory simulator; a production/live Airwallex gateway adapter is not wired in. The verifier's replay set is also process-local. The diagram documents implemented control flow, not a production deployment guarantee.
+The sequence's “live” read is a fresh `gateway.get()` call. In the console this reads the simulator, or the Airwallex sandbox through `LiveGateway` when credentials are set; a production/live Airwallex gateway adapter is not wired in. The verifier's replay set is also process-local. The diagram documents implemented control flow, not a production deployment guarantee.

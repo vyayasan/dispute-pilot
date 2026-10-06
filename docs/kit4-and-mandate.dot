@@ -31,6 +31,6 @@ digraph kit4 {
   tap -> vic [label="TAP verified"];
   vic -> receipt [label="mandate checks pass"];
   vic -> unverified [label="any mandate check fails", color="#b85e51", fontcolor="#9b4338"];
-  caveat [shape=note, label="SCOPE\nMandate helper is not wired into console/policy.\nThe flip isolates evidence.length === 0 vs non-empty;\nmandate kind has no special policy score.", fillcolor="#fff4ef", color="#d7897c", fontsize=9];
+  caveat [shape=note, label="SCOPE\nPolicy fails closed when a case carries mandateVerified === false.\nThe console does not run the Visa checks itself:\nthe caller passes the verification result in as a case fact.", fillcolor="#fff4ef", color="#d7897c", fontsize=9];
   caveat -> receipt [style=dashed, arrowhead=none];
 }

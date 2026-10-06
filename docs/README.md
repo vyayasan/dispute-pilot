@@ -11,7 +11,7 @@ Code-grounded workflow and architecture maps for the current repository. The Mer
 
 ## Scope notes
 
-- The console currently uses `makeSim()` and its in-memory gateway. `src/gateway/airwallex.ts` is a thin sandbox client, not an adapter currently wired into the console's `Gateway` interface.
+- The console uses `makeSim()` by default and `LiveGateway` (`src/gateway/live.ts`, on the client in `src/gateway/airwallex.ts`) when Airwallex sandbox credentials are set in the environment. `LiveGateway` is covered by mocked-client tests and has not been run end to end through the console.
 - `src/visa/tap.ts` is TAP-style RFC 9421 verification; `src/visa/vic.ts` uses a fixture-backed, VIC-shaped adapter. Neither is a live Visa integration.
 - The console timeline is in memory; the hash-chained audit log (`src/audit/audit.ts`) is written to `audit.jsonl` by the server and can be verified with `verifyChain`.
 - State-machine detail reflects `src/domain/stateMachine.ts` and `src/sim/simGateway.ts`; after an issuer rejection CHALLENGE is blocked and ESCALATE is legal at CHARGEBACK.
