@@ -49,6 +49,16 @@ export class AirwallexClient {
     if (!r.ok) throw new AirwallexError(r.status, j.code ?? "error", j.message ?? "request failed");
     return j as T;
   }
+  // Evidence goes through the File Service first; the returned id is what a challenge refers to. JPG or PDF only.
+  async uploadFile(name: string, bytes: Uint8Array, contentType: "image/jpeg" | "application/pdf"): Promise<{ file_id: string }> {
+    const token = await this.auth(); await this.throttle();
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(bytes)], { type: contentType }), name);
+    const r = await this.f(`${this.files}/api/v1/files/upload`, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
+    const j: any = await r.json().catch(() => ({}));
+    if (!r.ok || !j.file_id) throw new AirwallexError(r.status, j.code ?? "upload_failed", j.message ?? "file upload failed");
+    return { file_id: j.file_id };
+  }
   listDisputes() { return this.call<{ items: any[] }>("GET", "/api/v1/pa/payment_disputes"); }
   getDispute(id: string) { return this.call<any>("GET", `/api/v1/pa/payment_disputes/${encodeURIComponent(id)}`); }
   accept(id: string, reason: "LOW_VALUE_TRANSACTION" | "VALID_CUSTOMER_DISPUTE" | "OTHERS", acceptedBy: string, requestId?: string) {

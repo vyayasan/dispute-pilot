@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { issue, ApprovalVerifier, type Approval } from "../approval/approval.js";
 import { legalActions } from "../domain/stateMachine.js";
 import type { Action, Dispute } from "../domain/types.js";
@@ -12,6 +13,8 @@ const ActBody = z.object({ approval: z.object({
   approver: z.string(), expiresAt: z.string(), nonce: z.string(), rationale: z.string().max(1024), sig: z.string(),
 }) });
 const ApproveBody = z.object({ disputeId: z.string(), action: z.enum(["ACCEPT", "CHALLENGE", "ESCALATE"]) });
+const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
+const EvidenceBody = z.object({ disputeId: z.string(), name: z.string().trim().min(1).max(120).regex(/^[\w .()-]+$/), kind: z.enum(["jpg", "pdf"]), base64: z.string().max(8 * 1024 * 1024) });
 const RejectBody = z.object({ disputeId: z.string(), reason: z.string().trim().min(1).max(1024) }); // a rejection must say why
 
 export interface TimelineEvent { kind: "plan" | "new-info" | "revised-decision" | "review" | "action"; title: string; detail: string }
@@ -46,17 +49,16 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
   // One verifier for the life of the process: a demo reset must not revive an already used approval.
   const verifier = new ApprovalVerifier(key);
   const audit = options.audit ?? new AuditLog();
-  let timelineByCase = new Map<string, TimelineEvent[]>();
-
-  const resetTimelines = () => {
-    timelineByCase = new Map(gateway.list().map((c) => {
-      const initial = decide(c.dispute, c.facts, c.evidence, DEFAULT_POLICY, now());
-      return [c.dispute.id, [{ kind: "plan", title: "Initial plan", detail: `${initial.action}: ${initial.reasons.join("; ")}` }]];
-    }));
+  const timelineByCase = new Map<string, TimelineEvent[]>();
+  // The gateway may be remote, so the opening plan is written the first time a case is seen.
+  const seed = (c: Case) => {
+    if (timelineByCase.has(c.dispute.id)) return;
+    const initial = decide(c.dispute, c.facts, c.evidence, DEFAULT_POLICY, now());
+    timelineByCase.set(c.dispute.id, [{ kind: "plan", title: "Initial plan", detail: `${initial.action}: ${initial.reasons.join("; ")}` }]);
   };
-  resetTimelines();
 
   const view = (c: Case): CaseView => {
+    seed(c);
     const decision = decide(c.dispute, c.facts, c.evidence, DEFAULT_POLICY, now());
     return { dispute: c.dispute, facts: c.facts, evidence: c.evidence, story: c.story, decision,
       legalActions: legalActions(c.dispute, c.facts), timeline: [...(timelineByCase.get(c.dispute.id) ?? [])] };
@@ -71,15 +73,15 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
       if (options.allowedOrigins && origin && !options.allowedOrigins.includes(origin)) { audit.append("refused", { reason: "origin not allowed", origin }); return bad("origin not allowed", 403); }
       if (options.sessionToken && request.headers.get("x-console-token") !== options.sessionToken) { audit.append("refused", { reason: "missing or wrong console token", path: url.pathname }); return bad("missing or wrong console token", 403); }
     }
-    if (url.pathname === "/api/cases" && request.method === "GET") return json({ cases: gateway.list().map(view), audit: audit.list() });
+    if (url.pathname === "/api/cases" && request.method === "GET") return json({ cases: (await gateway.list()).map(view), audit: audit.list() });
     if (url.pathname === "/api/reset-demo" && request.method === "POST") {
-      gateway = makeSim(now()); resetTimelines(); audit.append("reset", {});
-      return json({ cases: gateway.list().map(view) });
+      gateway = makeSim(now()); timelineByCase.clear(); audit.append("reset", {});
+      return json({ cases: (await gateway.list()).map(view) });
     }
     if (url.pathname === "/api/approve" && request.method === "POST") {
       const parsed = ApproveBody.safeParse(await request.json().catch(() => null));
       if (!parsed.success) return bad("invalid approval request", 400);
-      const c = gateway.get(parsed.data.disputeId);
+      const c = await gateway.get(parsed.data.disputeId);
       if (!c) return bad("dispute not found", 404);
       if (!legalActions(c.dispute, c.facts).includes(parsed.data.action)) return bad("action not legal in live state", 409);
       const approval: Approval = issue(c.dispute, parsed.data.action, c.evidence.map((e) => e.sha256), DEFAULT_POLICY.version,
@@ -91,7 +93,7 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
       const parsed = ActBody.safeParse(await request.json().catch(() => null));
       if (!parsed.success) return bad("invalid action request", 400);
       const approval = parsed.data.approval as Approval;
-      const c = gateway.get(approval.disputeId);
+      const c = await gateway.get(approval.disputeId);
       if (!c) return bad("dispute not found", 404);
       const refusal = verifier.check(approval, c.dispute, approval.action, c.evidence.map((e) => e.sha256), now(), c.facts);
       if (refusal) { audit.append("refused", { action: approval.action, reason: refusal, nonce: approval.nonce }, c.dispute.id); return bad(refusal, 409); }
@@ -106,7 +108,7 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
         audit.append("override", { chosen: approval.action, recommended: recommended.action, reasons: recommended.reasons }, c.dispute.id);
       }
       try {
-        const result = gateway.apply(c.dispute.id, approval.action);
+        const result = await gateway.apply(c.dispute.id, approval.action);
         audit.append("executed", { action: approval.action, amount: approval.amount, currency: approval.currency, reasonCode: approval.reasonCode, result, nonce: approval.nonce }, c.dispute.id);
         if (result.includes("issuer rejected")) {
           history.push({ kind: "new-info", title: "New information", detail: result });
@@ -125,10 +127,28 @@ export function createConsoleApi(options: ConsoleApiOptions = {}) {
         return bad(`outcome unknown, reconcile before retrying: ${msg}`, 409);
       }
     }
+    if (url.pathname === "/api/evidence" && request.method === "POST") {
+      const parsed = EvidenceBody.safeParse(await request.json().catch(() => null));
+      if (!parsed.success) return bad("invalid evidence upload", 400);
+      const c = await gateway.get(parsed.data.disputeId);
+      if (!c) return bad("dispute not found", 404);
+      if (!gateway.attachEvidence) return bad("this gateway does not accept evidence uploads", 501);
+      const bytes = Buffer.from(parsed.data.base64, "base64");
+      if (bytes.length === 0 || bytes.length > MAX_EVIDENCE_BYTES) return bad("evidence must be 1 byte to 5 MB", 413);
+      const isJpg = bytes[0] === 0xff && bytes[1] === 0xd8, isPdf = bytes.subarray(0, 5).toString("latin1") === "%PDF-";
+      // Airwallex takes JPG or PDF only; check the bytes, not the name the caller gave.
+      if (!(parsed.data.kind === "jpg" ? isJpg : isPdf)) { audit.append("refused", { reason: "evidence bytes do not match declared type", kind: parsed.data.kind }, c.dispute.id); return bad("file content does not match its declared type (JPG or PDF only)", 415); }
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      const item = await gateway.attachEvidence(c.dispute.id, { name: parsed.data.name, kind: parsed.data.kind, bytes, sha256 });
+      audit.append("evidence_added", { name: item.name, kind: item.kind, sha256: item.sha256, bytes: bytes.length }, c.dispute.id);
+      seed(c);
+      (timelineByCase.get(c.dispute.id) ?? []).push({ kind: "new-info", title: "Evidence added", detail: `${item.name} (${item.kind}). Any earlier approval no longer matches and must be re-issued.` });
+      return json({ case: view(c) });
+    }
     if (url.pathname === "/api/reject" && request.method === "POST") {
       const parsed = RejectBody.safeParse(await request.json().catch(() => null));
       if (!parsed.success) return bad("invalid reject request", 400);
-      const c = gateway.get(parsed.data.disputeId);
+      const c = await gateway.get(parsed.data.disputeId);
       if (!c) return bad("dispute not found", 404);
       c.log.push("Reviewer rejected the recommendation; no dispute action was submitted.");
       audit.append("recommendation_rejected", { reason: parsed.data.reason }, c.dispute.id);
