@@ -42,6 +42,8 @@ Set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) and the console gains
 
 Every proposal goes through `gate()`. A proposal is accepted only when it agrees with the policy decision, or when it asks for a person to review (more cautious than policy). It is rejected when the action is not legal in the live state, when it cites evidence that does not exist, when its narrative carries a link, or when it argues for a less cautious action than policy allows. Rejected proposals and model errors fall back to the policy decision, and both outcomes go to the audit log. Case text is treated as untrusted data: an email that says "ignore policy and accept" cannot change the outcome. The tests mock the model; the layer has not yet been run against the live model.
 
+**Governance around the model.** Before policy sees a proposal it passes a schema check, guardrails (no new facts, real citations, no promises or links), a weighted rubric where code does the arithmetic (evidence 40%, customer history 25%, narrative 20%, reason-code fit 15%, all in one config), and reasoning checks that compare the model's scores and rationale with the structured facts. An optional veto-only critic is available. Any failure falls back to the policy decision and is written to the audit log. The rubric can only make a result more cautious. See [docs/model-governance.md](docs/model-governance.md). All of this is tested with a mock model and scripted proposals, not a live one.
+
 ## Live sandbox run
 The agent has been run end to end against the Airwallex sandbox: three payment intents, three real disputes staged at RFI, one accepted and refunded, one challenged with a JPG evidence file, one escalated, then an issuer rejection simulated and the case re-decided from live state (escalate, a person takes over). Dispute IDs, statuses and every API call are in [RUNLOG.md](RUNLOG.md), with the raw log in `runs/live-calls.jsonl` and the hash-chained decision trail in `runs/audit-live.jsonl`.
 
@@ -58,7 +60,7 @@ Open http://localhost:3000. Pick a case, accept, challenge or escalate, try the 
 ## Verify
     npm test          # unit, policy, approval, evidence, Visa, gateway and red-team suites
     npm run typecheck
-    npm run evals     # 46 realistic dispute scenarios across Visa and Mastercard families; writes evals/RESULTS.md
+    npm run evals     # 46 policy and footprint checks plus 14 model governance scenarios; writes evals/RESULTS.md
     npm run smoke     # live Airwallex sandbox, read-only; needs AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY in your environment
 
 ## Architecture

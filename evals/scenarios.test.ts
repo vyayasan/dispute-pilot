@@ -3,6 +3,7 @@ import { DEFAULT_POLICY, decide } from "../src/policy/policy.js";
 import { ceFootprintCheck } from "../src/evidence/assemble.js";
 import { ce3Checks } from "./ce3.js";
 import { evalNow, scenarios } from "./scenarios.js";
+import { govScenarios, runGov } from "./governance.js";
 
 describe("dispute policy eval scenarios", () => {
   for (const scenario of scenarios) {
@@ -16,4 +17,7 @@ describe("CE 3.0 evidence footprint", () => {
   for (const check of ce3Checks) {
     it(`${check.id}: ${check.why}`, () => expect(ceFootprintCheck(check.orders, check.disputed).ok).toBe(check.expected));
   }
+});
+describe("model governance scenarios", () => {
+  for (const s of govScenarios) it(`${s.id}: ${s.why}`, () => { const r = runGov(s); expect(r.pass, JSON.stringify(r.gate?.reasons ?? r.error)).toBe(true); });
 });

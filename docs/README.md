@@ -8,6 +8,7 @@ Code-grounded workflow and architecture maps for the current repository. The Mer
 2. [Dispute lifecycle](./dispute-lifecycle.md) · [SVG](./dispute-lifecycle.svg) · [PNG](./2-dispute-lifecycle.png)
 3. [Approval binding](./approval-binding.md) · [SVG](./approval-binding.svg) · [PNG](./3-approval-binding.png)
 4. [Kit 4 cases and mandate-evidence flip](./kit4-and-mandate.md) · [SVG](./kit4-and-mandate.svg) · [PNG](./4-kit4-and-mandate.png)
+5. [Model governance](./model-governance.md) · [SVG](./model-governance.svg) · [PNG](./5-model-governance.png)
 
 ## Scope notes
 

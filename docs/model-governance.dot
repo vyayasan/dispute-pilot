@@ -1,0 +1,17 @@
+digraph governance {
+  graph [rankdir=TB, bgcolor="#fffaf0", pad="0.3", nodesep="0.34", ranksep="0.40", splines=polyline, fontname="Inter", labelloc=t, label="DISPUTE PILOT  /  MODEL GOVERNANCE", fontsize=22, fontcolor="#183d32"];
+  node [shape=box, style="rounded,filled", color="#d8e2d8", fillcolor="#fffdf8", fontname="Inter", fontsize=11, fontcolor="#1d2a25", margin="0.16,0.12", penwidth=1.3];
+  edge [color="#35594b", penwidth=1.45, arrowsize=0.72, fontname="Inter", fontsize=9, fontcolor="#52675d"];
+  case [label="CASE RECORD\nstructured facts · evidence files · case text (untrusted)", fillcolor="#f3ead8", color="#d7c8a8"];
+  model [label="LANGUAGE MODEL (optional)\nread_case, then propose_action once\naction · rationale · narrative · rubric scores 0-5 with citations", fillcolor="#f3ead8", color="#d7c8a8"];
+  schema [label="1 · SCHEMA\nenums, bounded lengths, integer scores"];
+  guard [label="2 · GUARDRAILS\nno new facts (numbers, files) · real citations only\nno promises · no links"];
+  rubric [label="3 · RUBRIC (code does the maths)\nevidence 40% · history 25% · narrative 20% · reason-code fit 15%\nband: strong / mixed / weak · win probability moves at most 0.10", fillcolor="#e8f0e8", color="#789b82"];
+  reason [label="4 · REASONING CHECKS\nscores vs structured facts · score vs rationale\nunsupported scores · confidence vs band"];
+  critic [label="5 · CRITIC (optional)\nsecond model pass, veto only"];
+  policy [label="6 · POLICY GATE\nlegal state · fee · cap · deadline\nmay only get more cautious", fillcolor="#e8f0e8", color="#789b82"];
+  person [label="PERSON APPROVES\nbound, signed approval (see approval binding)", fillcolor="#dcebe0", color="#789b82"];
+  fallback [label="FALL BACK TO POLICY DECISION\nreason written to the hash-chained audit log\nreviewer sees both", fillcolor="#fae9e4", color="#d7897c"];
+  case -> model; model -> schema; schema -> guard; guard -> rubric; rubric -> reason; reason -> critic; critic -> policy; policy -> person;
+  schema -> fallback [label="fail", style=dashed]; guard -> fallback [label="fail", style=dashed]; reason -> fallback [label="fail", style=dashed]; critic -> fallback [label="veto / error", style=dashed]; policy -> fallback [label="less cautious", style=dashed];
+}
